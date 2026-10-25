@@ -1,0 +1,16 @@
+# EXPERIMENTAL: HTTPS directly on the VM's IP address.
+# Let's Encrypt issues IP-address certificates only through its short-lived profile (valid about 6.5 days,
+# renewed automatically). Caddy's own docs do not describe this option, so if Caddy refuses to start,
+# read `docker compose logs caddy`, then switch CADDYFILE back to Caddyfile.http in .env.
+# Ports 80 and 443 must both be open to the internet for the certificate to be issued.
+{
+	admin off
+	email {$ACME_EMAIL}
+	cert_issuer acme {
+		profile shortlived
+	}
+}
+
+{$PUBLIC_IP} {
+	import /etc/caddy/app.caddy
+}

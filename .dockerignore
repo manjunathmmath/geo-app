@@ -1,0 +1,11 @@
+# Used when building the Caddy + admin panel image from the repository root.
+.git
+mobile
+samples
+docs
+api
+**/node_modules
+**/dist
+**/target
+**/build
+**/data

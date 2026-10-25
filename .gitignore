@@ -1,0 +1,15 @@
+target/
+build/
+node_modules/
+dist/
+.idea/
+.vscode/
+*.iml
+.env
+.env.*
+!.env.example
+data/
+uploads/
+.dart_tool/
+.flutter-plugins*
+*.log

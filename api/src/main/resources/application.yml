@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: geo-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/geoapp}
+    username: ${DB_USER:geoapp}
+    password: ${DB_PASSWORD:geoapp}
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+app:
+  jwt:
+    # Development default only. Set APP_JWT_SECRET (32+ characters) everywhere else.
+    secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
+    access-ttl: 15m
+    refresh-ttl: 30d
+  storage:
+    dir: ${APP_STORAGE_DIR:./data/uploads}
+  geo:
+    default-radius-m: 20
+    max-radius-m: 100
+    # Posts reported with a worse GPS accuracy than this are rejected.
+    max-accuracy-m: 100
+  cors-origins:
+    - http://localhost:5173
+  bootstrap-admin:
+    email: ${APP_ADMIN_EMAIL:}
+    password: ${APP_ADMIN_PASSWORD:}
+  # Only used by the "dev" profile seed data (DevSeedData): where the demo posts are placed.
+  seed:
+    lat: ${SEED_LAT:12.9716}
+    lng: ${SEED_LNG:77.5946}

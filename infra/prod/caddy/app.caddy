@@ -1,0 +1,33 @@
+encode zstd gzip
+
+header {
+	X-Content-Type-Options nosniff
+	Referrer-Policy same-origin
+	-Server
+}
+
+# The API. 60 MB leaves room for the 50 MB file limit plus the form fields.
+handle /api/* {
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy api:8080
+}
+
+handle /actuator/health {
+	reverse_proxy api:8080
+}
+
+# Uploaded photos / audio / video, served straight from the shared uploads volume.
+handle /media/* {
+	uri strip_prefix /media
+	root * /srv/uploads
+	file_server
+}
+
+# Everything else is the admin panel (a single-page app).
+handle {
+	root * /srv/admin
+	try_files {path} /index.html
+	file_server
+}

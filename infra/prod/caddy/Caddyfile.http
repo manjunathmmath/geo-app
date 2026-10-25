@@ -1,0 +1,10 @@
+# Plain HTTP on the VM's IP address. Works today and is fine for testing among your own devices,
+# but passwords and login tokens travel unencrypted, so do not use real passwords you care about.
+{
+	admin off
+	auto_https off
+}
+
+http://{$PUBLIC_IP} {
+	import /etc/caddy/app.caddy
+}

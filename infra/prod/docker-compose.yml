@@ -1,0 +1,63 @@
+# Production stack for one VM: database, API, and Caddy (web server + admin panel).
+# Run from this folder with a filled-in .env (copy .env.example):  docker compose up -d --build
+name: geoapp
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: geoapp
+      POSTGRES_USER: geoapp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # No published ports: only the API, on the private Docker network, can reach the database.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geoapp -d geoapp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ../../api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/geoapp
+      DB_USER: geoapp
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?set APP_JWT_SECRET in .env (32+ characters)}
+      APP_STORAGE_DIR: /data/uploads
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:?set APP_ADMIN_EMAIL in .env}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?set APP_ADMIN_PASSWORD in .env}
+    volumes:
+      - uploads:/data/uploads
+
+  caddy:
+    build:
+      context: ../..
+      dockerfile: infra/prod/caddy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_IP: ${PUBLIC_IP:?set PUBLIC_IP in .env (the VM's external IP)}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    command: ["caddy", "run", "--config", "/etc/caddy/${CADDYFILE:-Caddyfile.http}", "--adapter", "caddyfile"]
+    volumes:
+      - uploads:/srv/uploads:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:
