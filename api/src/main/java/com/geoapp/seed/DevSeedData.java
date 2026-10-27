@@ -98,6 +98,10 @@ public class DevSeedData implements ApplicationRunner {
         approvedNear.add(approved(admin, bob, 18, 45, true, "Street sounds (sample tone)", n++));
         // Posted by the admin: published immediately.
         add(admin, 10, 135, false, "Welcome to the neighbourhood (admin post)", PostStatus.APPROVED, n++);
+        // Text-only posts (no file).
+        approvedText(admin, bob, 5, 300, "The chai here is best after 5 pm. Ask for the cardamom one.");
+        approvedText(admin, carol, 16, 150, "Heads up: the lane behind the temple is closed until Saturday for repairs.");
+        approvedText(admin, alice, 11, 230, "Lost a blue umbrella near the bus stop yesterday. If you find it, please post here.");
 
         // Approved but outside 20 m: visible only with a larger radius or from somewhere else.
         approved(admin, carol, 35, 20, false, "Bus stop, 35 m away", n++);
@@ -105,6 +109,7 @@ public class DevSeedData implements ApplicationRunner {
         approved(admin, bob, 90, 200, true, "Fountain sound, 90 m away", n++);
         approved(admin, carol, 250, 300, false, "Market entrance, 250 m away", n++);
         approved(admin, alice, 800, 60, false, "Lake view, 800 m away", n++);
+        approvedText(admin, bob, 120, 20, "Free parking on this side of the road after 6 pm.");
 
         // Waiting for moderation: enough to exercise paging in the admin queue.
         String[] pendingCaptions = {"New cafe opening", "Cat on the wall", "Sunset from the roof", "Local band rehearsal",
@@ -114,6 +119,7 @@ public class DevSeedData implements ApplicationRunner {
         for (int i = 0; i < pendingCaptions.length; i++) {
             add(authors[i % 3], 4 + i * 2, i * 30, i % 4 == 3, pendingCaptions[i], PostStatus.PENDING, n++);
         }
+        addText(alice, 7, 100, "Is the bakery on the corner still open on Sundays?", PostStatus.PENDING);
 
         // Rejected, each with a reason a creator would see.
         rejected(admin, mallory, 6, 10, "Buy cheap watches here!", "Advertising is not allowed", n++);
@@ -133,7 +139,7 @@ public class DevSeedData implements ApplicationRunner {
                 Admin   : {} / {}
                 Creators: alice@, bob@, carol@geoapp.local / {}
                 Blocked : mallory@geoapp.local
-                Posts   : 6 approved within 20 m, 5 approved farther away, 12 pending, 3 rejected, 3 reports
+                Posts   : 9 approved within 20 m (3 text), 6 approved farther away, 13 pending, 3 rejected, 3 reports
                 -----------------------------------------------""",
                 centreLat, centreLng, ADMIN_EMAIL, ADMIN_PASSWORD, USER_PASSWORD);
     }
@@ -146,6 +152,16 @@ public class DevSeedData implements ApplicationRunner {
         UUID id = add(author, metres, bearing, audio, caption, PostStatus.PENDING, i);
         posts.review(id, admin.id(), PostStatus.APPROVED, null);
         return id;
+    }
+
+    private void approvedText(User admin, User author, double metres, double bearing, String text) {
+        UUID id = addText(author, metres, bearing, text, PostStatus.PENDING);
+        posts.review(id, admin.id(), PostStatus.APPROVED, null);
+    }
+
+    private UUID addText(User author, double metres, double bearing, String text, PostStatus status) {
+        double[] p = offset(centreLat, centreLng, metres, bearing);
+        return posts.insert(author.id(), PostType.TEXT, null, null, text, p[0], p[1], 6f, status, null);
     }
 
     private void rejected(User admin, User author, double metres, double bearing, String caption, String reason, int i) {

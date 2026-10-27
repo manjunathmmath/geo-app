@@ -6,8 +6,11 @@ RUN mvn -q -B dependency:go-offline
 COPY src ./src
 RUN mvn -q -B -DskipTests package
 
-# Run stage: just a JRE and the jar, as a non-root user.
+# Run stage: a JRE, ffmpeg (preview images of photos and videos) and the jar, as a non-root user.
 FROM eclipse-temurin:21-jre
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --uid 10001 --no-create-home app \
  && mkdir -p /data/uploads && chown app /data/uploads
 WORKDIR /app

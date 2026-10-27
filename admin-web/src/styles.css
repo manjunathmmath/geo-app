@@ -256,6 +256,25 @@ input:focus-visible,
   background: #000;
   display: block;
 }
+.media.textpost {
+  aspect-ratio: auto;
+  min-height: 120px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bg);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+}
+.media.textpost p {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .media.audio {
   display: grid;
   place-items: center;

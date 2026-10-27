@@ -39,7 +39,7 @@ export default function Queue() {
       setData(remaining);
       setNotice({
         kind: 'ok',
-        text: `${decision === 'APPROVE' ? 'Approved' : 'Rejected'}: ${post.caption ?? post.id.slice(0, 8)}`,
+        text: `${decision === 'APPROVE' ? 'Approved' : 'Rejected'}: ${post.caption ?? post.text?.slice(0, 40) ?? post.id.slice(0, 8)}`,
       });
       if (remaining.length === 0) {
         if (offset > 0) setOffset(Math.max(0, offset - LIMIT));

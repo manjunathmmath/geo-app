@@ -41,14 +41,15 @@ public class PostController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     ResponseEntity<PostView> create(@AuthenticationPrincipal AuthUser user,
-                                    @RequestPart("file") MultipartFile file,
+                                    @RequestPart(value = "file", required = false) MultipartFile file,
                                     @RequestParam double lat,
                                     @RequestParam double lng,
                                     @RequestParam(required = false) Float accuracy,
                                     @RequestParam(required = false) String caption,
+                                    @RequestParam(required = false) String text,
                                     @RequestParam(required = false) UUID authorId) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(service.create(user, file, lat, lng, accuracy, caption, authorId));
+                .body(service.create(user, file, lat, lng, accuracy, caption, text, authorId));
     }
 
     @GetMapping("/mine")

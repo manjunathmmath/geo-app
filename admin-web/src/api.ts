@@ -5,9 +5,10 @@ export type PostStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export interface Post {
   id: string;
   authorId: string;
-  type: 'IMAGE' | 'VIDEO' | 'AUDIO';
-  mediaUrl: string;
-  caption: string | null;
+  type: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'TEXT';
+  mediaUrl: string | null; // null for text posts
+  caption: string | null; // photo / audio / video posts
+  text: string | null; // text posts
   lat: number;
   lng: number;
   accuracyM: number | null;
@@ -150,7 +151,8 @@ export const api = {
 
   /** Admin posts are published immediately; the server decides that from the role. */
   createPost: (p: {
-    file: File;
+    file?: File; // leave out for a text-only post
+    text?: string;
     lat: number;
     lng: number;
     accuracy?: number | null;
@@ -159,7 +161,8 @@ export const api = {
   }) => {
     const body = new FormData();
     if (p.authorId) body.append('authorId', p.authorId);
-    body.append('file', p.file);
+    if (p.file) body.append('file', p.file);
+    else if (p.text?.trim()) body.append('text', p.text.trim());
     body.append('lat', String(p.lat));
     body.append('lng', String(p.lng));
     if (p.accuracy != null) body.append('accuracy', String(p.accuracy));

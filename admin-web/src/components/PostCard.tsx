@@ -9,15 +9,23 @@ interface Props {
 }
 
 function Media({ post }: { post: Post }) {
+  const src = post.mediaUrl ?? undefined;
+  if (post.type === 'TEXT') {
+    return (
+      <div className="media textpost">
+        <p>{post.text}</p>
+      </div>
+    );
+  }
   if (post.type === 'IMAGE') {
-    return <img className="media" src={post.mediaUrl} alt={post.caption ?? 'Post image'} loading="lazy" />;
+    return <img className="media" src={src} alt={post.caption ?? 'Post image'} loading="lazy" />;
   }
   if (post.type === 'VIDEO') {
-    return <video className="media" src={post.mediaUrl} controls preload="metadata" />;
+    return <video className="media" src={src} controls preload="metadata" />;
   }
   return (
     <div className="media audio">
-      <audio src={post.mediaUrl} controls preload="metadata" />
+      <audio src={src} controls preload="metadata" />
     </div>
   );
 }
@@ -48,7 +56,7 @@ export default function PostCard({ post, authorLabel, onApprove, onReject }: Pro
           <span className={`badge ${post.status.toLowerCase()}`}>{post.status}</span>
           <span className="badge type">{post.type}</span>
         </div>
-        <h3>{post.caption ?? <span className="muted">(no caption)</span>}</h3>
+        {post.type !== 'TEXT' && <h3>{post.caption ?? <span className="muted">(no caption)</span>}</h3>}
         <dl className="meta">
           <dt>By</dt>
           <dd>{authorLabel}</dd>

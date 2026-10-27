@@ -69,8 +69,8 @@ npm run dev                      # http://localhost:5173
 
 Sign in as `admin@geoapp.local` / `Admin#12345` (dev demo data). Creator accounts are refused. The dev server proxies `/api` and `/media` to the API, so there is no CORS setup. `npm run build` type-checks and writes the static site to `dist/`, which Caddy serves in production.
 
-- **Moderation:** Pending / Approved / Rejected tabs, image / audio / video preview, author, GPS accuracy, map link. Approve, reject with a reason, take down an approved post, or restore a rejected one.
-- **New post:** pick a photo / video / audio file (checked against 50 MB), add a caption, set the location with "Use my current location" (browser GPS, needs HTTPS or localhost) or type latitude / longitude. Admin posts publish immediately. "Post as" lets an admin post on behalf of any active user: the post belongs to that user (it appears in their own list) and the admin is recorded as the approver (`posts.reviewed_by`). Only admins can set an author (API: optional `authorId` on `POST /api/posts`).
+- **Moderation:** Pending / Approved / Rejected tabs, **newest first**, with image / audio / video preview or the post's text, author, GPS accuracy, map link. Approve, reject with a reason, take down an approved post, or restore a rejected one.
+- **New post:** a **Photo, audio or video** tab (pick a file, checked against 50 MB, with an optional caption) or a **Text only** tab (up to 1000 characters). Set the location with "Use my current location" (browser GPS, needs HTTPS or localhost) or type latitude / longitude. Admin posts publish immediately. "Post as" lets an admin post on behalf of any active user: the post belongs to that user (it appears in their own list) and the admin is recorded as the approver (`posts.reviewed_by`). Only admins can set an author (API: optional `authorId` on `POST /api/posts`).
 - **Users:** block / unblock and promote / demote (you cannot block or demote yourself).
 
 ## Run the mobile app
@@ -90,7 +90,11 @@ flutter run
 - Run `adb reverse` again each time you reconnect the phone.
 - Demo posts are around 12.9716, 77.5946. To see them on a phone elsewhere, restart the API with `SEED_LAT` / `SEED_LNG` set to your location on a fresh database, or post from the app where you stand.
 
-What the app does today: browse posts within 20 m (no sign-in needed, refreshes as you walk), create an account or sign in, post a photo from the camera or gallery at your current position (a moderator approves it first), and see your posts with their review status and rejection reason. Audio and video posts show a placeholder: playback, recording and push notifications are not built yet.
+What the app does today:
+- **Here** (home tab, no sign-in needed): posts within 20 m of you, **newest first**, as a **3-column grid of previews** (tap one to open a **full-screen viewer** and swipe up or down through the rest), with a colour-coded GPS badge ("GPS ±8 m"), filter chips (All / Photo / Video / Audio / Text, with counts) and distance and age on every post ("4 m away · 2 min ago"). Video and audio play in the viewer (tap play; only one plays at a time) and text posts show their words. It checks for new posts every 30 s and while you walk; new ones wait behind a "2 new posts" banner so the list does not jump while you read. The viewer's "…" menu has **Report this post**. An empty spot says "Nothing here yet" with a **Post here** button. The first time, a short note explains why the location is needed before Android asks.
+- **The + button** (middle of the bottom bar, asks you to sign in first): a sheet with the GPS status and four big buttons, **Photo**, **Video**, **Audio** and **Text**. Each opens its own page: Photo and Video go straight to the camera (video up to 30 s, 50 MB, or from the gallery), Audio records up to 60 s in the app, Text is up to 1000 characters. Audio and video can be previewed before posting. The GPS line turns amber when weak and red when too weak to post (worse than 100 m). A moderator approves the post first.
+- **Me** (second tab): your account, **Sign out**, and **My posts** newest first with review status and rejection reason.
+- Not built yet: a map view, picking an existing audio file, author names on posts, push notifications, iOS testing.
 
 Tests: `flutter analyze` and `flutter test` in `mobile/`.
 
@@ -110,7 +114,7 @@ cd C:\Projects\geo-app\samples
 .\load-samples.ps1 -BaseUrl http://YOUR_VM_IP -AdminEmail you@example.com -Location '12.37602,77.06316','12.9786,77.364'
 ```
 
-The first location gets the full set (10 approved within 20 m, 7 farther away, 8 pending, 2 rejected, 2 reports); each further location gets a smaller one.
+The first location gets the full set (13 approved within 20 m, 8 farther away, 9 pending, 2 rejected, 2 reports, including text posts); each further location gets a smaller one. On a server that was filled before text posts existed, add `-TextOnly` to add just the four text posts.
 
 ## API summary
 
@@ -118,8 +122,8 @@ The first location gets the full set (10 approved within 20 m, 7 farther away, 8
 |---|---|
 | `POST /api/auth/register`, `/login`, `/refresh`, `/logout` | public |
 | `GET /api/auth/me` | logged in |
-| `GET /api/posts/nearby?lat=&lng=&radius=` | public (approved posts only, radius capped at 100 m) |
-| `POST /api/posts` (multipart: `file`, `lat`, `lng`, `accuracy`, `caption`) | logged in; admin posts publish at once, others wait for review |
+| `GET /api/posts/nearby?lat=&lng=&radius=` | public (approved posts only, newest first, radius capped at 100 m) |
+| `POST /api/posts` (multipart: `lat`, `lng`, `accuracy`, then either `file` + optional `caption`, or `text` with no file) | logged in; admin posts publish at once, others wait for review |
 | `GET /api/posts/mine`, `POST /api/posts/{id}/report` | logged in |
 | `GET /api/admin/posts?status=`, `POST /api/admin/posts/{id}/review` | admin |
 | `GET /api/admin/users`, `PATCH /api/admin/users/{id}` | admin |
@@ -146,3 +150,7 @@ mvn test        # starts a throwaway PostGIS container, so Docker must be runnin
 - Pending and rejected media files are reachable by anyone who knows the random file URL (they are not guessable, but not access controlled).
 - No rate limiting on login or upload yet.
 - No video/audio transcoding, push notifications, phone OTP, or admin view of reports.
+
+## Preview images
+
+The API makes a small JPEG preview (480 px wide) of every photo and video with ffmpeg, which the app's grid uses. The Docker image installs ffmpeg; locally set `APP_FFMPEG_PATH` if it is not on the PATH. A post is still created if the preview fails. For posts made before previews existed, sign in as admin and call `POST /api/admin/thumbnails` (up to 200 posts per call; repeat while `created` is above 0).

@@ -36,6 +36,8 @@ app:
     max-accuracy-m: 100
   cors-origins:
     - http://localhost:5173
+  ffmpeg:
+    path: ${APP_FFMPEG_PATH:ffmpeg}
   bootstrap-admin:
     email: ${APP_ADMIN_EMAIL:}
     password: ${APP_ADMIN_PASSWORD:}

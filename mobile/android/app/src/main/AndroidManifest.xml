@@ -3,10 +3,13 @@
     <!-- Posts are tied to the phone's position, so precise location is required. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Recording an audio post. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="GeoApp"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

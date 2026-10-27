@@ -42,6 +42,8 @@ export default function NewPost() {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Post | null>(null);
   const [authorId, setAuthorId] = useState(''); // '' = post as myself
+  const [mode, setMode] = useState<'media' | 'text'>('media');
+  const [text, setText] = useState('');
 
   // Active users the admin can post as (the first 100; enough for now).
   const { data: users } = useLoad(() => api.listUsers(100, 0), []);
@@ -107,14 +109,24 @@ export default function NewPost() {
     lat.trim() !== '' && lng.trim() !== '' && Number.isFinite(latNum) && Number.isFinite(lngNum) &&
     Math.abs(latNum) <= 90 && Math.abs(lngNum) <= 180;
 
+  const hasContent = mode === 'media' ? file !== null : text.trim().length > 0;
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!file || !coordsValid) return;
+    if (!coordsValid || !hasContent) return;
     setBusy(true);
     setError(null);
     try {
       setCreated(
-        await api.createPost({ file, lat: latNum, lng: lngNum, accuracy, caption, authorId: authorId || undefined }),
+        await api.createPost({
+          file: mode === 'media' ? (file ?? undefined) : undefined,
+          text: mode === 'text' ? text : undefined,
+          lat: latNum,
+          lng: lngNum,
+          accuracy,
+          caption: mode === 'media' ? caption : undefined,
+          authorId: authorId || undefined,
+        }),
       );
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) void logout();
@@ -127,6 +139,7 @@ export default function NewPost() {
   function reset() {
     setFile(null);
     setCaption('');
+    setText('');
     setCreated(null);
     setError(null);
   }
@@ -163,11 +176,48 @@ export default function NewPost() {
         Admin posts are published immediately. Visitors see the post when they are within 20 m of the location below.
       </p>
       <form className="card newpost" onSubmit={submit}>
-        <label>
-          Photo, video or audio
-          <input type="file" accept={ACCEPT} onChange={pickFile} required />
-        </label>
-        {file && previewUrl && <Preview file={file} url={previewUrl} />}
+        <div className="tabs" role="tablist" aria-label="Kind of post">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'media'}
+            className={mode === 'media' ? 'tab active' : 'tab'}
+            onClick={() => setMode('media')}
+          >
+            Photo, audio or video
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'text'}
+            className={mode === 'text' ? 'tab active' : 'tab'}
+            onClick={() => setMode('text')}
+          >
+            Text only
+          </button>
+        </div>
+
+        {mode === 'media' ? (
+          <>
+            <label>
+              File
+              <input type="file" accept={ACCEPT} onChange={pickFile} />
+            </label>
+            {file && previewUrl && <Preview file={file} url={previewUrl} />}
+          </>
+        ) : (
+          <label>
+            Text
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={1000}
+              rows={5}
+              placeholder="Write what you want people at this spot to read"
+            />
+            <span className="small muted">{text.length} / 1000</span>
+          </label>
+        )}
 
         <label>
           Post as
@@ -181,10 +231,12 @@ export default function NewPost() {
           </select>
         </label>
 
-        <label>
-          Caption (optional)
-          <textarea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={500} rows={2} />
-        </label>
+        {mode === 'media' && (
+          <label>
+            Caption (optional)
+            <textarea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={500} rows={2} />
+          </label>
+        )}
 
         <fieldset>
           <legend>Location</legend>
@@ -228,7 +280,7 @@ export default function NewPost() {
           </div>
         )}
         <div className="row">
-          <button className="btn primary" disabled={busy || !file || !coordsValid}>
+          <button className="btn primary" disabled={busy || !hasContent || !coordsValid}>
             {busy ? 'Posting…' : 'Publish post'}
           </button>
         </div>

@@ -125,6 +125,23 @@ class ApiIntegrationTest {
     }
 
     @Test
+    void previewFailureNeverBlocksAPostAndBackfillIsAdminOnly() throws Exception {
+        // The sample JPEG is not a decodable picture, so no preview can be made; the post must still be created.
+        String creator = register(email());
+        createPost(creator, 26.0, 76.0, 5f, JPEG)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.thumbUrl").doesNotExist());
+
+        mvc.perform(post("/api/admin/thumbnails").header("Authorization", bearer(creator)))
+                .andExpect(status().isForbidden());
+        String admin = login("admin@test.local", "Admin#12345");
+        mvc.perform(post("/api/admin/thumbnails").header("Authorization", bearer(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.created").isNumber())
+                .andExpect(jsonPath("$.failed").isNumber());
+    }
+
+    @Test
     void anonymousCannotPostAndCreatorCannotModerate() throws Exception {
         mvc.perform(multipart("/api/posts")
                         .file(new MockMultipartFile("file", "a.jpg", "image/jpeg", JPEG))
@@ -225,7 +242,97 @@ class ApiIntegrationTest {
         createPostAs(admin, 28.0, 78.0, id).andExpect(status().isConflict());
     }
 
+    @Test
+    void textPostGoesThroughModerationLikeAnyOtherPost() throws Exception {
+        double lat = 29.0, lng = 79.0;
+        String admin = login("admin@test.local", "Admin#12345");
+        String creator = register(email());
+
+        String id = JsonPath.read(createText(creator, lat, lng, "  Best chai in town after 5 pm  ")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.type").value("TEXT"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.text").value("Best chai in town after 5 pm"))
+                .andExpect(jsonPath("$.mediaUrl").doesNotExist())
+                .andReturn().getResponse().getContentAsString(), "$.id");
+
+        nearby(lat, lng, null).andExpect(jsonPath("$.length()").value(0));
+
+        mvc.perform(post("/api/admin/posts/" + id + "/review").header("Authorization", bearer(admin))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"APPROVE\"}"))
+                .andExpect(status().isOk());
+
+        nearby(lat, lng, null)
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].type").value("TEXT"))
+                .andExpect(jsonPath("$[0].text").value("Best chai in town after 5 pm"));
+    }
+
+    @Test
+    void adminTextPostIsPublishedImmediately() throws Exception {
+        String admin = login("admin@test.local", "Admin#12345");
+        createText(admin, 30.0, 80.0, "Notice from the admin")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+        nearby(30.0, 80.0, null).andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void aPostNeedsEitherAFileOrText() throws Exception {
+        String creator = register(email());
+        createText(creator, 31.0, 81.0, "   ").andExpect(status().isBadRequest());
+        mvc.perform(multipart("/api/posts").param("lat", "31").param("lng", "81")
+                        .header("Authorization", bearer(creator)))
+                .andExpect(status().isBadRequest());
+        createText(creator, 31.0, 81.0, "x".repeat(1001)).andExpect(status().isBadRequest());
+        createText(creator, 31.0, 81.0, "x".repeat(1000)).andExpect(status().isCreated());
+    }
+
+    @Test
+    void postsAreListedNewestFirst() throws Exception {
+        double lat = 32.0, lng = 82.0;
+        String admin = login("admin@test.local", "Admin#12345");
+        createText(admin, lat, lng, "first").andExpect(status().isCreated());
+        createText(admin, lat, lng, "second").andExpect(status().isCreated());
+        createText(admin, lat, lng, "third").andExpect(status().isCreated());
+
+        nearby(lat, lng, null)
+                .andExpect(jsonPath("$[0].text").value("third"))
+                .andExpect(jsonPath("$[1].text").value("second"))
+                .andExpect(jsonPath("$[2].text").value("first"));
+
+        // The moderation queue is newest first too.
+        String creator = register(email());
+        createText(creator, lat, lng, "older pending").andExpect(status().isCreated());
+        String newest = JsonPath.read(createText(creator, lat, lng, "newest pending")
+                .andReturn().getResponse().getContentAsString(), "$.id");
+        mvc.perform(get("/api/admin/posts").param("status", "PENDING").header("Authorization", bearer(admin)))
+                .andExpect(jsonPath("$[0].id").value(newest));
+        mvc.perform(get("/api/posts/mine").header("Authorization", bearer(creator)))
+                .andExpect(jsonPath("$[0].id").value(newest));
+    }
+
+    @Test
+    void mediaPostsStillNeedARealFileAndKeepTheirCaption() throws Exception {
+        String creator = register(email());
+        createPost(creator, 33.0, 83.0, 5f, JPEG)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.type").value("IMAGE"))
+                .andExpect(jsonPath("$.caption").value("test"))
+                .andExpect(jsonPath("$.text").doesNotExist());
+    }
+
     // ---- helpers ----
+
+    private org.springframework.test.web.servlet.ResultActions createText(
+            String token, double lat, double lng, String text) throws Exception {
+        return mvc.perform(multipart("/api/posts")
+                .param("lat", String.valueOf(lat))
+                .param("lng", String.valueOf(lng))
+                .param("accuracy", "6")
+                .param("text", text)
+                .header("Authorization", bearer(token)));
+    }
 
     private MvcResult registerFull(String email) throws Exception {
         return mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)

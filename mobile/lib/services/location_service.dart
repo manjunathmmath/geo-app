@@ -9,6 +9,9 @@ class LocationException implements Exception {
 }
 
 class LocationService {
+  /// The most recent fix from any screen, so a screen can show the GPS state without waiting for a new one.
+  static Position? last;
+
   /// A fresh, high-accuracy fix. Asks for permission the first time.
   static Future<Position> current() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
@@ -25,9 +28,11 @@ class LocationService {
       throw const LocationException('Location permission is blocked. Enable it for GeoApp in the phone settings.');
     }
     try {
-      return await Geolocator.getCurrentPosition(
+      final p = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 20)),
       );
+      last = p;
+      return p;
     } catch (_) {
       throw const LocationException('Could not get a GPS fix. Move to an open area and try again.');
     }
@@ -36,7 +41,10 @@ class LocationService {
   /// Position updates, one for roughly every 5 m moved.
   static Stream<Position> updates() => Geolocator.getPositionStream(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 5),
-      );
+      ).map((p) {
+        last = p;
+        return p;
+      });
 
   static double metresBetween(Position a, Position b) =>
       Geolocator.distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);

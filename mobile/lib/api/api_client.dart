@@ -171,13 +171,24 @@ class ApiClient {
     return (_decode(res) as List<dynamic>).map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Tells the moderators about a post. One report per user per post.
+  Future<void> reportPost(String postId, String reason) async {
+    final res = await _send(
+      (h) => _http.post(_uri('/api/posts/$postId/report'), headers: h, body: jsonEncode({'reason': reason.trim()})),
+      json: true,
+    );
+    _decode(res);
+  }
+
   Future<List<Post>> mine() async {
     final res = await _send((h) => _http.get(_uri('/api/posts/mine'), headers: h));
     return (_decode(res) as List<dynamic>).map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Creates a post from a file (photo, video or audio, with an optional caption) or, with no file, from [text].
   Future<Post> createPost({
-    required String filePath,
+    String? filePath,
+    String? text,
     required double lat,
     required double lng,
     required double? accuracy,
@@ -191,8 +202,12 @@ class ApiClient {
           ..fields['lat'] = '$lat'
           ..fields['lng'] = '$lng';
         if (accuracy != null) req.fields['accuracy'] = '$accuracy';
-        if (caption != null && caption.trim().isNotEmpty) req.fields['caption'] = caption.trim();
-        req.files.add(await http.MultipartFile.fromPath('file', filePath));
+        if (filePath != null) {
+          if (caption != null && caption.trim().isNotEmpty) req.fields['caption'] = caption.trim();
+          req.files.add(await http.MultipartFile.fromPath('file', filePath));
+        } else if (text != null) {
+          req.fields['text'] = text.trim();
+        }
         return http.Response.fromStream(await _http.send(req));
       },
       timeout: _uploadTimeout,

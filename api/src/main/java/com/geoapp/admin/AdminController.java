@@ -1,6 +1,7 @@
 package com.geoapp.admin;
 
 import com.geoapp.common.ApiException;
+import com.geoapp.media.ThumbnailService;
 import com.geoapp.posts.PostRepository;
 import com.geoapp.posts.PostService;
 import com.geoapp.posts.PostStatus;
@@ -14,6 +15,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,10 +41,32 @@ public class AdminController {
 
     private final PostRepository posts;
     private final UserRepository users;
+    private final ThumbnailService thumbnails;
 
-    public AdminController(PostRepository posts, UserRepository users) {
+    public AdminController(PostRepository posts, UserRepository users, ThumbnailService thumbnails) {
         this.posts = posts;
         this.users = users;
+        this.thumbnails = thumbnails;
+    }
+
+    /**
+     * Makes preview images for photo and video posts that have none (posts made before previews existed, or while
+     * ffmpeg was missing). Handles up to 200 posts per call, newest first; call it again while "created" is above 0.
+     */
+    @PostMapping("/thumbnails")
+    Map<String, Integer> makeThumbnails() {
+        int created = 0;
+        int failed = 0;
+        for (PostRepository.MediaRef ref : posts.withoutThumbnail(200)) {
+            var thumb = thumbnails.create(ref.mediaPath(), ref.type());
+            if (thumb.isPresent()) {
+                posts.setThumbnail(ref.id(), thumb.get());
+                created++;
+            } else {
+                failed++;
+            }
+        }
+        return Map.of("created", created, "failed", failed);
     }
 
     @GetMapping("/posts")

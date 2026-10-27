@@ -10,7 +10,12 @@ public record AppProperties(
         Storage storage,
         Geo geo,
         List<String> corsOrigins,
-        BootstrapAdmin bootstrapAdmin) {
+        BootstrapAdmin bootstrapAdmin,
+        Ffmpeg ffmpeg) {
+
+    /** The ffmpeg program used to make preview images. Optional: without it posts simply have no preview. */
+    public record Ffmpeg(String path) {}
+
 
     public record Jwt(String secret, Duration accessTtl, Duration refreshTtl) {}
 
